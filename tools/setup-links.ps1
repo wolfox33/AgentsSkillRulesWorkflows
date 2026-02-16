@@ -35,6 +35,11 @@ function Ensure-Junction([string]$path, [string]$target) {
 
 foreach ($target in $canonical.Values) { Assert-Canonical $target }
 
+$workflowFiles = Get-ChildItem -Path $canonical.workflows -Filter '*.md' -File -ErrorAction SilentlyContinue
+if (-not $workflowFiles) {
+  Write-Warning "No workflow .md files found in '$($canonical.workflows)'. .windsurf/workflows will be empty until you add workflows to the canonical folder."
+}
+
 foreach ($mirror in $mirrors) {
   Ensure-Dir $mirror.base
   foreach ($k in $mirror.map.Keys) {

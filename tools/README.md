@@ -28,3 +28,4 @@ Get-Item .agent\* , .windsurf\* | Select-Object FullName, LinkType, Target
 ### Observações
 - Junctions não são versionados pelo Git. Após clonar em outra máquina, rode o script novamente para recriar os espelhos.
 - Edite SEMPRE na pasta canônica (`skills/`, `Agents/`, `Rules/`, `workflows/`); os espelhos só apontam para lá.
+- Se `workflows/` estiver vazio, `.windsurf/workflows` também ficará vazio (por ser espelho). Adicione os arquivos `.md` de workflow na pasta canônica `workflows/`.
