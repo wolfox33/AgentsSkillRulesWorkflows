@@ -1,18 +1,30 @@
-# Creates/refreshes junction mirrors for Antigravity (.agent) and Windsurf (.windsurf)
-# Run from any location: powershell -ExecutionPolicy Bypass -File tools/setup-links.ps1
+# Creates/refreshes mirrors for Antigravity (.agent) and Windsurf (.windsurf)
+# Default behavior:
+# - Source (canonical): parent of this script (/AgentsSkillRulesWorkflows)
+# - Target project: current directory
 
-# Script lives in /tools; repo root is parent
-$root = Split-Path -Parent $PSScriptRoot
+param(
+  [string]$TargetProjectRoot = (Get-Location).Path,
+  [string]$SourceRoot = ""
+)
+
+if ([string]::IsNullOrWhiteSpace($SourceRoot)) {
+  # Script lives in /tools; canonical root is parent
+  $SourceRoot = Split-Path -Parent $PSScriptRoot
+}
+
+$sourceRoot = (Resolve-Path $SourceRoot).Path
+$targetRoot = (Resolve-Path $TargetProjectRoot).Path
 
 $canonical = @{
-  skills    = Join-Path $root 'skills'
-  agents    = Join-Path $root 'Agents'
-  rules     = Join-Path $root 'Rules'
-  workflows = Join-Path $root 'workflows'
+  skills    = Join-Path $sourceRoot 'skills'
+  agents    = Join-Path $sourceRoot 'Agents'
+  rules     = Join-Path $sourceRoot 'Rules'
+  workflows = Join-Path $sourceRoot 'workflows'
 }
 
 $mirrors = @(
-  @{ base = Join-Path $root '.agent';    map = @{ skills = 'skills'; agents = 'agents'; rules = 'rules'; workflows = 'workflows' } }
+  @{ base = Join-Path $targetRoot '.agent'; map = @{ skills = 'skills'; agents = 'agents'; rules = 'rules'; workflows = 'workflows' } }
 )
 
 function Assert-Canonical([string]$path) {
@@ -32,6 +44,15 @@ function Ensure-Junction([string]$path, [string]$target) {
   New-Item -ItemType Junction -Path $path -Target $target | Out-Null
 }
 
+function Ensure-LinkedFile([string]$path, [string]$target) {
+  if (Test-Path $path) { Remove-Item -Force $path }
+  try {
+    New-Item -ItemType HardLink -Path $path -Target $target | Out-Null
+  } catch {
+    Copy-Item -Path $target -Destination $path -Force
+  }
+}
+
 foreach ($target in $canonical.Values) { Assert-Canonical $target }
 
 $workflowFiles = Get-ChildItem -Path $canonical.workflows -Filter '*.md' -File -ErrorAction SilentlyContinue
@@ -49,7 +70,7 @@ foreach ($mirror in $mirrors) {
 }
 
 # Windsurf: criar espelho flatten para skills e rules (compatibilidade com scanner)
-$windsurfRoot = Join-Path $root '.windsurf'
+$windsurfRoot = Join-Path $targetRoot '.windsurf'
 Ensure-Dir $windsurfRoot
 
 function Ensure-Dir-Clean([string]$path) {
@@ -57,20 +78,20 @@ function Ensure-Dir-Clean([string]$path) {
   New-Item -ItemType Directory -Path $path | Out-Null
 }
 
-# Flatten skills: .windsurf/skills/<skill>/ (sem camada de categoria)
+# Flatten skills: .windsurf/skills/<skill>.md apontando para SKILL.md
 $windsurfSkills = Join-Path $windsurfRoot 'skills'
 Ensure-Dir-Clean $windsurfSkills
 
-$skillDirs = Get-ChildItem -Path $canonical.skills -Directory -Recurse -ErrorAction SilentlyContinue | Where-Object { Test-Path (Join-Path $_.FullName 'SKILL.md') }
+$skillFiles = Get-ChildItem -Path $canonical.skills -Filter 'SKILL.md' -File -Recurse -ErrorAction SilentlyContinue
 $seenSkillNames = @{}
-foreach ($dir in $skillDirs) {
-  $name = $dir.Name
+foreach ($file in $skillFiles) {
+  $name = $file.Directory.Name
   if ($seenSkillNames.ContainsKey($name)) {
-    $name = "$($dir.Parent.Name)-$name" # evita colisao
+    $name = "$($file.Directory.Parent.Name)-$name" # evita colisao
   }
   $seenSkillNames[$name] = $true
-  $dest = Join-Path $windsurfSkills $name
-  Ensure-Junction $dest $dir.FullName
+  $dest = Join-Path $windsurfSkills ($name + '.md')
+  Ensure-LinkedFile $dest $file.FullName
 }
 
 # Flatten rules: criar links de arquivo direto em .windsurf/rules
@@ -85,8 +106,7 @@ foreach ($file in $ruleFiles) {
   $prefix = $file.Directory.Name
   $name = "$prefix-$($file.BaseName)$($file.Extension)"
   $dest = Join-Path $windsurfRules $name
-  if (Test-Path $dest) { Remove-Item -Force $dest }
-  New-Item -ItemType HardLink -Path $dest -Target $file.FullName | Out-Null
+  Ensure-LinkedFile $dest $file.FullName
 }
 
 # Flatten workflows (copiar .md em nivel direto)
@@ -95,7 +115,7 @@ Ensure-Dir-Clean $windsurfWorkflows
 $workflowFiles = Get-ChildItem -Path $canonical.workflows -Filter '*.md' -File -ErrorAction SilentlyContinue
 foreach ($file in $workflowFiles) {
   $dest = Join-Path $windsurfWorkflows $file.Name
-  New-Item -ItemType HardLink -Path $dest -Target $file.FullName | Out-Null
+  Ensure-LinkedFile $dest $file.FullName
 }
 
-Write-Host "Junctions refreshed for .agent and flattened mirrors for .windsurf" -ForegroundColor Green
+Write-Host "Mirrors refreshed in '$targetRoot' using source '$sourceRoot'" -ForegroundColor Green

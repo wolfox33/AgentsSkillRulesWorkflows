@@ -16,6 +16,19 @@ Cria/atualiza junctions para espelhar a estrutura canônica em `.agent/` (Antigr
 powershell -ExecutionPolicy Bypass -File tools/setup-links.ps1
 ```
 
+### Usar em outro projeto (ex.: Bagual)
+Execute o script pelo caminho absoluto, com terminal aberto na raiz do projeto alvo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\Code\AgentsSkillRulesWorkflows\tools\setup-links.ps1
+```
+
+Opcionalmente, informe explicitamente o alvo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\Code\AgentsSkillRulesWorkflows\tools\setup-links.ps1 -TargetProjectRoot C:\Code\Bagual
+```
+
 ### Requisitos
 - Windows com PowerShell
 - Permissão para criar Junction (não precisa modo desenvolvedor)
