@@ -59,10 +59,20 @@ $targetAgents = Join-Path $targetRoot '.agents'
 if (Test-Path $targetAgents) { Remove-Item -Recurse -Force $targetAgents }
 Copy-Item -Path $canonicalRoot -Destination $targetAgents -Recurse -Force
 
-# Create symlink AGENTS.MD -> .agents/agents.md in target root
+# Create link AGENTS.MD -> .agents/agents.md in target root (symlink preferred, fallback to hardlink/copy)
 $agentsLink = Join-Path $targetRoot 'AGENTS.MD'
+$agentsTarget = Join-Path $targetAgents 'agents.md'
 if (Test-Path $agentsLink) { Remove-Item -Force $agentsLink }
-New-Item -ItemType SymbolicLink -Path $agentsLink -Target (Join-Path $targetAgents 'agents.md') | Out-Null
+
+try {
+  New-Item -ItemType SymbolicLink -Path $agentsLink -Target $agentsTarget | Out-Null
+} catch {
+  try {
+    New-Item -ItemType HardLink -Path $agentsLink -Target $agentsTarget | Out-Null
+  } catch {
+    Copy-Item -Path $agentsTarget -Destination $agentsLink -Force
+  }
+}
 
 # Ensure .codeiumignore exists with defaults
 $codeiumignorePath = Join-Path $targetRoot '.codeiumignore'
