@@ -65,10 +65,10 @@ $agentsTarget = Join-Path $targetAgents 'agents.md'
 if (Test-Path $agentsLink) { Remove-Item -Force $agentsLink }
 
 try {
-  New-Item -ItemType SymbolicLink -Path $agentsLink -Target $agentsTarget | Out-Null
+  New-Item -ItemType SymbolicLink -Path $agentsLink -Target $agentsTarget -ErrorAction Stop | Out-Null
 } catch {
   try {
-    New-Item -ItemType HardLink -Path $agentsLink -Target $agentsTarget | Out-Null
+    New-Item -ItemType HardLink -Path $agentsLink -Target $agentsTarget -ErrorAction Stop | Out-Null
   } catch {
     Copy-Item -Path $agentsTarget -Destination $agentsLink -Force
   }
