@@ -3,7 +3,8 @@
 
 param(
   [string]$TargetProjectRoot = (Get-Location).Path,
-  [string]$SourceRoot = ""
+  [string]$SourceRoot = "",
+  [switch]$RemoveGitInTarget = $false
 )
 
 if ([string]::IsNullOrWhiteSpace($SourceRoot)) {
@@ -61,9 +62,13 @@ node_modules/
 "@
 Set-Content -Path $codeiumignorePath -Value $codeiumignoreContent -Encoding UTF8
 
-# Remove local .git in target project (not parent repo)
-$targetGit = Join-Path $targetRoot '.git'
-if (Test-Path $targetGit) { Remove-Item -Recurse -Force $targetGit }
+# Remove local .git in target project (opt-in)
+if ($RemoveGitInTarget) {
+  $targetGit = Join-Path $targetRoot '.git'
+  if (Test-Path $targetGit) { Remove-Item -Recurse -Force $targetGit }
+} else {
+  Write-Host "Skipping .git removal in target (use -RemoveGitInTarget to delete)" -ForegroundColor Yellow
+}
 
 # .windsurf (Windsurf compatibility: rules/workflows)
 $windsurfRoot = Join-Path $targetRoot '.windsurf'
